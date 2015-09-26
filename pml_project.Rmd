@@ -1,0 +1,107 @@
+---
+output: html_document
+---
+#Practical Machine Learning Prject Write Up: 
+#### Katherine Zhang
+
+
+###Overview
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. The goal of this project is to predict the manner in which the participants performed barbell lifts, indicating by a catogorical variable with five levels, using the personal activity data collected from accelerometers on the belt, forearm, arm and dumbell. 
+
+###Data 
+The training data for this project are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment. 
+
+
+###Load relative R Libarary 
+```{r}
+library(caret)
+library(rpart)
+library(randomForest)
+```
+
+###Readin Data
+There are 19,622 observations in the train dataset and 20 observations in the test dataset. Both have 160 variables. 
+```{r}
+setwd("/Users/katherinezhang/Desktop/Coursera R")
+
+train<-read.csv("pml-training.csv")
+test<-read.csv("pml-testing.csv")
+dim(train)
+dim(test)
+```
+
+### Clean Data 
+The # of variables reduced to 53 after removing variables with missing values and other unusful variables. 
+```{r}
+train<-train[,colSums(is.na(train))==0]
+test<-test[,colSums(is.na(train))==0]
+
+classe<-train$classe
+Remove <- grepl("^X|timestamp|window", names(train))
+train <- train[, !Remove]
+train <- train[, sapply(train, is.numeric)]
+train$classe <- classe
+Remove <- grepl("^X|timestamp|window", names(test))
+test <- test[, !Remove]
+test <- test[, sapply(test, is.numeric)]
+
+dim(train)
+dim(test)
+```
+
+###Sample 
+Randomly split the train dataset into training table (70%) and testing table (30%).
+```{r}
+set.seed(1234)
+inTraining<-createDataPartition(train$classe,p=.7,list=FALSE)
+training<-train[inTraining,]
+testing<-train[-inTraining,]
+```
+
+###Cross Validation
+Setup the control of 5 folds cross validation. 
+```{r}
+fitControl<-trainControl(method="cv",number=5)
+```
+
+###TreeModel 
+Build a CART model. The accuracy of the model is subpar. 
+```{r}
+TreeModel<-train(classe ~., data=training,method="rpart",trControl=fitControl)
+TreeModel
+```
+
+###Random Forest Model
+Build a random forest model. Result is more accurate than the one tree CART model. 
+```{r}
+RFModel<-train(classe ~., data=training,method="rf",trControl=fitControl,ntree=100)
+RFModel
+```
+
+###Estimate out of sample error
+Apply the random forest algorithm to the 20% testing table to estimate the out of sample error. The accuracy on the testing table is 99.30%, and the out of sample error is 1-99.3%=0.7%. 99.3% times the estimated barbell lifting manners are correct. 
+```{r}
+predict<-predict(RFModel,testing)
+confusionMatrix(testing$classe, predict)
+```
+
+###Predict the actual test data
+Apply the algorithm to the actual test data to predict the barbell lifting manners for the 20 test observations. 
+```{r}
+predictTest<-predict(RFModel,test)
+predictTest
+```
+
+###Conclusion
+Using personal activity data collected from accelerometers on the belt, forearm, arm and dumbell, we can build a random forest model with cross validation that accurately predicts the barbell lifting manners.  
+
+
+
+
+
